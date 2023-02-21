@@ -10,19 +10,21 @@ public class Factorizer implements Runnable {
      *
      *  2. Number of Concurrent Threads
      *
-     *  So i think that our program should start be starting creating an instance of our Factorized
+     *  So i think that our program should start by creating an instance of our Factorizer
       */
 
-    Integer nrOfThreads;
+    private final static long MIN = 1;
+    BigInteger nrOfThreads;
     BigInteger product;
-    BigInteger min = BigInteger.TWO;
+    BigInteger min;
     BigInteger max; // max should probably be the input we get from the
     //int step = nrOfThreads;
 
-    Factorizer(BigInteger product, Integer nrOfThread) {
+    Factorizer(BigInteger product, BigInteger nrOfThread, long min) {
         this.product = product;
         this.nrOfThreads = nrOfThread;
         this.max = product;
+        this.min = new BigInteger(String.valueOf(min));
 
     }
 
@@ -46,8 +48,8 @@ public class Factorizer implements Runnable {
                 BigInteger factor2 = product.divide(factor1);
                 return;
             }
-            //number = number.add(step); //should be 'nrOfThreads' here
-            number = number.add(BigInteger.valueOf(nrOfThreads));
+            //number = number.add(step); //should be 'nrOfThreads' here as steps-size
+            number = number.add(nrOfThreads);
         }
     }
 
@@ -58,13 +60,38 @@ public class Factorizer implements Runnable {
      *             they are arguments written in the console
      */
     public static void main(String[] args) {
-       //Factorizer f1 = new Factorizer();
 
-        // Create a new instance of the runner. Remember that it should be concurrent and thread-safe
-        Factorizer f1 = new Factorizer(new BigInteger(args[0]), new Integer(args[1]));
+        try {
 
+            // Get console arguments
+            BigInteger product = new BigInteger(args[0]);
+            BigInteger numThreads = new BigInteger(args[1]);
 
-        System.out.println("hejehej" + args[0]);
+            // create an array of threads
+            Thread[] threads = new Thread[numThreads.intValue()];
+
+            //create new threads with a seperate Factorizer object in each of them
+            for (int i = 0; i < numThreads.intValue() ; i++) {
+                threads[i] = new Thread(new Factorizer(product, numThreads, MIN + i ));
+            }
+
+            // Start the threads
+            for (int i = 0; i < numThreads.intValue(); i++) {
+                threads[i].start();
+            }
+
+            // Collect the threads
+            for (int i = 0; i < numThreads.intValue(); i++) {
+                threads[i].join();
+            }
+
+            System.out.println("hejehej" + args[0]);
+
+        }
+
+        catch (Exception exception){
+            System.out.println(exception);
+        }
     }
 }
 
