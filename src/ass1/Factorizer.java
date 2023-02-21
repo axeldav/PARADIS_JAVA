@@ -45,7 +45,7 @@ public class Factorizer implements Runnable {
     @Override
     public void run() {
 
-        System.out.println("thread started");
+        System.out.println("thread started. " + "min: " + min.toString() + " nrOfThreads: " + nrOfThreads.toString());
 
         BigInteger number = min; // Vi får inte använda Wrapper-klasser som synchronized.
         while (number.compareTo(max) <= 0 ){
