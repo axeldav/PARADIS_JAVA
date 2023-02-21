@@ -45,6 +45,8 @@ public class Factorizer implements Runnable {
     @Override
     public void run() {
 
+        System.out.println("thread started");
+
         BigInteger number = min; // Vi får inte använda Wrapper-klasser som synchronized.
         while (number.compareTo(max) <= 0 ){
 
@@ -55,8 +57,6 @@ public class Factorizer implements Runnable {
 
             if (product.remainder(number).compareTo(BigInteger.ZERO) == 0) { // om product är delbart med number
 
-                //set exit to true
-                exit = true;
 
                 // should return these two factors, and also the computation time
                 BigInteger factor1 = number;
@@ -64,6 +64,9 @@ public class Factorizer implements Runnable {
 
                 // put factor1, factor2 in some kind of static list-variable to be accessed from the main process
                 factors = new BigInteger[]{factor1, factor2};
+
+                //set exit to true
+                exit = true;
 
                 return;
             }
@@ -102,8 +105,10 @@ public class Factorizer implements Runnable {
                 threads[i].start();
             }
 
-            while (factors == null){
 
+            // Instead of an empty while loop we could collect all the threads with the join() method
+            for (int i = 0; i < threads.length ; i++) {
+                threads[i].join();
             }
 
             // Stop timing.
