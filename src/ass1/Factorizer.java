@@ -1,6 +1,7 @@
 package ass1;
 
 import java.math.BigInteger;
+import java.util.ArrayList;
 
 public class Factorizer implements Runnable {
     /***
@@ -13,12 +14,16 @@ public class Factorizer implements Runnable {
      *  So i think that our program should start by creating an instance of our Factorizer
       */
 
-    private final static long MIN = 1;
+    //static flag to exit our processes when factors are found
+    // "volatile boolean flag"
+    private static boolean exit = false;
+    // static list with our factors
+    private static BigInteger[] factors = null;
+    private final static long MIN = 2;
     BigInteger nrOfThreads;
     BigInteger product;
     BigInteger min;
     BigInteger max; // max should probably be the input we get from the
-    //int step = nrOfThreads;
 
     Factorizer(BigInteger product, BigInteger nrOfThread, long min) {
         this.product = product;
@@ -39,16 +44,30 @@ public class Factorizer implements Runnable {
 
     @Override
     public void run() {
+
         BigInteger number = min; // Vi får inte använda Wrapper-klasser som synchronized.
         while (number.compareTo(max) <= 0 ){
+
+            //if factors have been found and exit has been set to true, then exit the process
+            if(exit) {
+                return;
+            }
+
             if (product.remainder(number).compareTo(BigInteger.ZERO) == 0) { // om product är delbart med number
+
+                //set exit to true
+                exit = true;
 
                 // should return these two factors, and also the computation time
                 BigInteger factor1 = number;
                 BigInteger factor2 = product.divide(factor1);
+
+                // put factor1, factor2 in some kind of static list-variable to be accessed from the main process
+                factors = new BigInteger[]{factor1, factor2};
+
                 return;
             }
-            //number = number.add(step); //should be 'nrOfThreads' here as steps-size
+            //number = number.add(stcdep); //should be 'nrOfThreads' here as steps-size
             number = number.add(nrOfThreads);
         }
     }
@@ -62,6 +81,9 @@ public class Factorizer implements Runnable {
     public static void main(String[] args) {
 
         try {
+            // Start timing.
+            long start = System.nanoTime();
+
 
             // Get console arguments
             BigInteger product = new BigInteger(args[0]);
@@ -80,12 +102,18 @@ public class Factorizer implements Runnable {
                 threads[i].start();
             }
 
-            // Collect the threads
-            for (int i = 0; i < numThreads.intValue(); i++) {
-                threads[i].join();
+            while (factors == null){
+
             }
 
-            System.out.println("hejehej" + args[0]);
+            // Stop timing.
+            long stop = System.nanoTime();
+
+            System.out.println("Execution time (seconds): " + (stop-start)/1.0E9);
+
+            for (int i = 0; i < factors.length; i++) {
+                System.out.println(factors[i].toString());
+            }
 
         }
 
