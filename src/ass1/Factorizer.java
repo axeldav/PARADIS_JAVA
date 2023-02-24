@@ -1,11 +1,11 @@
 package ass1;
 
 import java.math.BigInteger;
-import java.util.ArrayList;
+import java.util.concurrent.locks.ReentrantLock;
 
 public class Factorizer implements Runnable {
     /***
-     *  This class is 'Runnable in a thread
+     *  This class is 'Runnable' in a thread.
      *  The program should take two integers:
      *  1. Product of two primes
      *
@@ -14,24 +14,42 @@ public class Factorizer implements Runnable {
      *  So i think that our program should start by creating an instance of our Factorizer
       */
 
-    //static flag to exit our processes when factors are found
-    // "volatile boolean flag"
-    private static boolean exit = false;
+
+    private static Factorizer[] factorizers;
+    private static final Object lockFactors = new Object(); //global object used as a lock in all threads
+    private static boolean stop = false;
+    private boolean exit = false;
+
     // static list with our factors
     private static BigInteger[] factors = null;
-    private final static long MIN = 2;
-    BigInteger nrOfThreads;
-    BigInteger product;
-    BigInteger min;
-    BigInteger max; // max should probably be the input we get from the
+    private final static int MIN = 2;
+    private final int nrOfThreadsVal;
+    private final long productVal;
+    private final int minVal;
+    private final long maxVal; // max should probably be the input we get from the
 
-    Factorizer(BigInteger product, BigInteger nrOfThread, long min) {
-        this.product = product;
-        this.nrOfThreads = nrOfThread;
-        this.max = product;
-        this.min = new BigInteger(String.valueOf(min));
-
+    Factorizer(long product, int nrOfThreads, int min) {
+        this.productVal = product;
+        this.nrOfThreadsVal = nrOfThreads;
+        this.maxVal = product;
+        this.minVal = min;
     }
+
+    static boolean alreadyHasFactors(){
+        return factors != null;
+    }
+
+    public synchronized boolean isExit(){
+        return exit;
+    }
+     public synchronized void setExit(boolean b){
+       exit = b;
+    }
+
+    public void setFactors(BigInteger a, BigInteger b){
+        factors = new BigInteger[]{a,b};
+    }
+
 
 
     /**
@@ -40,84 +58,101 @@ public class Factorizer implements Runnable {
      * min: the smallest number to investigate
      * max: the largest number to investigate
      */
-
-
     @Override
     public void run() {
 
+        //since only these local variables will be modified inside run(), it will be thread safe
+        BigInteger number = new BigInteger(String.valueOf(minVal)); // Vi får inte använda Wrapper-klasser till primitiva typer som synchronized.
+        BigInteger product = new BigInteger(String.valueOf(productVal));
+        BigInteger max = new BigInteger(String.valueOf(maxVal));
+        BigInteger min = new BigInteger(String.valueOf(minVal));
+        BigInteger nrOfThreads = new BigInteger(String.valueOf(nrOfThreadsVal));
+
         System.out.println("thread started. " + "min: " + min.toString() + " nrOfThreads: " + nrOfThreads.toString());
 
-        BigInteger number = min; // Vi får inte använda Wrapper-klasser som synchronized.
-        while (number.compareTo(max) <= 0 ){
+        while (number.compareTo(max) <= 0 ) {
 
             //if factors have been found and exit has been set to true, then exit the process
-            if(exit) {
+            if (isExit()) {
+                System.out.println("exits thread: other");
                 return;
             }
 
-            if (product.remainder(number).compareTo(BigInteger.ZERO) == 0) { // om product är delbart med number
+            if (product.remainder(number).compareTo(BigInteger.ZERO) == 0) {
 
+                //we guard here so that not multiple threads can come in and try to set the factors simultaneously. Also meanwhile one thread is setting the factors, another thread could come here and check 'alreadyHasFactors' meanwhile we are in the process of setting them in another thread
+                synchronized (lockFactors) {
+                    if(alreadyHasFactors()) return;
 
-                // should return these two factors, and also the computation time
-                BigInteger factor1 = number;
-                BigInteger factor2 = product.divide(factor1);
+                    // should return these two factors, and also the computation time
+                    BigInteger factor1 = number;
+                    BigInteger factor2 = product.divide(factor1);
 
-                // put factor1, factor2 in some kind of static list-variable to be accessed from the main process
-                factors = new BigInteger[]{factor1, factor2};
+                    // put factor1, factor2 in some kind of static list-variable to be accessed from the main process
+                    setFactors(factor1, factor2);
 
-                //set exit to true
-                exit = true;
+                    // each factorizer sets its exit-value to true
+                    for (Factorizer factorizer : factorizers) {
+                        factorizer.setExit(true);
+                    }
 
-                return;
-            }
-            //number = number.add(stcdep); //should be 'nrOfThreads' here as steps-size
+                    System.out.println("exits thread: factors found");
+                    return;
+                }//synchronized
+            }//if
             number = number.add(nrOfThreads);
         }
     }
 
-
-    /**
-     *
-     * @param args - We use two args here: 1. Product, 2. nrOfThreads
-     *             they are arguments written in the console
-     */
     public static void main(String[] args) {
 
         try {
             // Start timing.
             long start = System.nanoTime();
 
-
             // Get console arguments
-            BigInteger product = new BigInteger(args[0]);
-            BigInteger numThreads = new BigInteger(args[1]);
+            long product = Long.parseLong(args[0]);
+            int numThreads = Integer.parseInt(args[1]);
 
             // create an array of threads
-            Thread[] threads = new Thread[numThreads.intValue()];
+            Thread[] threads = new Thread[numThreads];
 
-            //create new threads with a seperate Factorizer object in each of them
-            for (int i = 0; i < numThreads.intValue() ; i++) {
-                threads[i] = new Thread(new Factorizer(product, numThreads, MIN + i ));
+            //we have to create a list of factorizers here also
+            factorizers = new Factorizer[numThreads];
+            for (int i = 0; i < numThreads ; i++){
+                factorizers[i] = new Factorizer(product, numThreads, MIN + i);
             }
 
+            //create new threads with a seperate Factorizer object in each of them
+            for (int i = 0; i < numThreads ; i++) {
+                threads[i] = new Thread(factorizers[i]);
+            }
+
+
             // Start the threads
-            for (int i = 0; i < numThreads.intValue(); i++) {
+            for (int i = 0; i < numThreads; i++) {
                 threads[i].start();
             }
 
-
-            // Instead of an empty while loop we could collect all the threads with the join() method
-            for (int i = 0; i < threads.length ; i++) {
-                threads[i].join();
+            // Collect all the threads with the join() method
+            for (Thread thread : threads) {
+                thread.join();
             }
 
             // Stop timing.
             long stop = System.nanoTime();
 
+            // print result
             System.out.println("Execution time (seconds): " + (stop-start)/1.0E9);
-
-            for (int i = 0; i < factors.length; i++) {
-                System.out.println(factors[i].toString());
+            if(factors[0].equals(new BigInteger("1") ))
+                System.out.println("No factorization possible");
+            else if ( factors[1].equals(new BigInteger("1"))) {
+                System.out.println("No factorization possible");
+            }
+            else {
+                for (BigInteger factor : factors) {
+                    System.out.println(factor.toString());
+                }
             }
 
         }
