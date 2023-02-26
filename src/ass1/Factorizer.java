@@ -1,32 +1,29 @@
-package ass1;
+//package ass1;
+/**
+ * Axel Davidsson
+ * axda2670
+ */
 
 import java.math.BigInteger;
-import java.util.concurrent.locks.ReentrantLock;
+import peteria.javaconcurrency.annotation.ThreadSafe;
+import peteria.javaconcurrency.annotation.GuardedBy;
 
+@ThreadSafe
 public class Factorizer implements Runnable {
-    /***
-     *  This class is 'Runnable' in a thread.
-     *  The program should take two integers:
-     *  1. Product of two primes
-     *
-     *  2. Number of Concurrent Threads
-     *
-     *  So i think that our program should start by creating an instance of our Factorizer
-      */
-
-
+    @GuardedBy("lockFactors")
     private static Factorizer[] factorizers;
     private static final Object lockFactors = new Object(); //global object used as a lock in all threads
-    private static boolean stop = false;
+    @GuardedBy("this")
     private boolean exit = false;
 
     // static list with our factors
+    @GuardedBy("lockFactors")
     private static BigInteger[] factors = null;
     private final static int MIN = 2;
     private final int nrOfThreadsVal;
     private final long productVal;
     private final int minVal;
-    private final long maxVal; // max should probably be the input we get from the
+    private final long maxVal;
 
     Factorizer(long product, int nrOfThreads, int min) {
         this.productVal = product;
@@ -35,21 +32,18 @@ public class Factorizer implements Runnable {
         this.minVal = min;
     }
 
-    static boolean alreadyHasFactors(){
-        return factors != null;
+    private boolean alreadyHasFactors(){
+        synchronized (lockFactors) {
+            return factors != null;
+        }
     }
 
-    public synchronized boolean isExit(){
+    private synchronized boolean isExit(){
         return exit;
     }
-     public synchronized void setExit(boolean b){
+     private synchronized void setExit(boolean b){
        exit = b;
     }
-
-    public void setFactors(BigInteger a, BigInteger b){
-        factors = new BigInteger[]{a,b};
-    }
-
 
 
     /**
@@ -61,44 +55,40 @@ public class Factorizer implements Runnable {
     @Override
     public void run() {
 
-        //since only these local variables will be modified inside run(), it will be thread safe
-        BigInteger number = new BigInteger(String.valueOf(minVal)); // Vi får inte använda Wrapper-klasser till primitiva typer som synchronized.
+        //since these local variables will be modified inside run(), it will be thread safe
+        BigInteger number = new BigInteger(String.valueOf(minVal));
         BigInteger product = new BigInteger(String.valueOf(productVal));
         BigInteger max = new BigInteger(String.valueOf(maxVal));
-        BigInteger min = new BigInteger(String.valueOf(minVal));
         BigInteger nrOfThreads = new BigInteger(String.valueOf(nrOfThreadsVal));
 
-        System.out.println("thread started. " + "min: " + min.toString() + " nrOfThreads: " + nrOfThreads.toString());
 
         while (number.compareTo(max) <= 0 ) {
 
-            //if factors have been found and exit has been set to true, then exit the process
+            //if factors have been found so that exit has been set to true, then exit the process
             if (isExit()) {
-                System.out.println("exits thread: other");
                 return;
             }
 
             if (product.remainder(number).compareTo(BigInteger.ZERO) == 0) {
 
-                //we guard here so that not multiple threads can come in and try to set the factors simultaneously. Also meanwhile one thread is setting the factors, another thread could come here and check 'alreadyHasFactors' meanwhile we are in the process of setting them in another thread
-                synchronized (lockFactors) {
                     if(alreadyHasFactors()) return;
 
-                    // should return these two factors, and also the computation time
-                    BigInteger factor1 = number;
-                    BigInteger factor2 = product.divide(factor1);
+                    //we guard here so that not multiple threads can come in and try to set the factors simultaneously. Also meanwhile one thread is setting the factors, another thread could come here and check 'alreadyHasFactors' meanwhile we are in the process of setting them in another thread
+                    synchronized (lockFactors) {
+                        // should return these two factors, and also the computation time
+                        BigInteger factor1 = number;
+                        BigInteger factor2 = product.divide(factor1);
 
-                    // put factor1, factor2 in some kind of static list-variable to be accessed from the main process
-                    setFactors(factor1, factor2);
+                        // put factor1, factor2 in some kind of static list-variable to be accessed from the main process
+                        factors = new BigInteger[]{factor1,factor2};
+                    }//synchronized
 
-                    // each factorizer sets its exit-value to true
                     for (Factorizer factorizer : factorizers) {
-                        factorizer.setExit(true);
+                        factorizer.setExit(true); //set exit is synchronized
                     }
 
-                    System.out.println("exits thread: factors found");
                     return;
-                }//synchronized
+
             }//if
             number = number.add(nrOfThreads);
         }
@@ -117,17 +107,16 @@ public class Factorizer implements Runnable {
             // create an array of threads
             Thread[] threads = new Thread[numThreads];
 
-            //we have to create a list of factorizers here also
+            // create a list of factorizers here also
             factorizers = new Factorizer[numThreads];
             for (int i = 0; i < numThreads ; i++){
                 factorizers[i] = new Factorizer(product, numThreads, MIN + i);
             }
 
-            //create new threads with a seperate Factorizer object in each of them
+            //create new threads with a seperate Factorizer-object in each of them
             for (int i = 0; i < numThreads ; i++) {
                 threads[i] = new Thread(factorizers[i]);
             }
-
 
             // Start the threads
             for (int i = 0; i < numThreads; i++) {
