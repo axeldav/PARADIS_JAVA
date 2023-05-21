@@ -23,14 +23,18 @@ class Client implements Runnable {
 	public void run() {
 		try {
 			String threadInfo = " (" + Thread.currentThread().getName() + ").";
+
+			// Går bara i en loop här och läser in meddelanden
 			while (true) {
 				if (socketReader.ready()) {
 					String line = socketReader.readLine();
-					System.out.println("Received: \"" + line + "\"" + threadInfo);
+					System.out.println(line + " " + threadInfo);
+					//System.out.println("Received: \"" + line + "\"" + threadInfo);
 				}
 				Thread.sleep(100);
 			}
 		}
+
 		catch (InterruptedException exception) {
 		}
 		catch (Exception exception) {
@@ -53,9 +57,7 @@ class Client implements Runnable {
 				+ " (" + localSocketAddress + ").");
 
 			socketWriter = new PrintWriter(socket.getOutputStream(), true);
-			socketReader = new BufferedReader(
-				new InputStreamReader(socket.getInputStream())
-			);
+			socketReader = new BufferedReader(new InputStreamReader(socket.getInputStream()));
 			
 			// Run socketReader in separate thread from consoleReader.
 			Thread thread = new Thread(new Client(socketReader));
@@ -68,7 +70,7 @@ class Client implements Runnable {
 			while (message != null && !message.equals("close")) {
 				if (message != null && !message.isEmpty()) {
 					socketWriter.println(message);
-					System.out.println("Sent: \"" + message + "\"" + threadInfo);
+					//System.out.println("Sent: \"" + message + "\"" + threadInfo);
 				}
 				message = consoleReader.readLine();
 			}

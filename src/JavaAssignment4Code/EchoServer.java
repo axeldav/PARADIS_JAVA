@@ -48,11 +48,10 @@ class EchoServer implements Runnable {
 			
             while (inputLine != null) {
 				socketWriter.println(inputLine);
-				System.out.println("Sent: \"" + inputLine + "\" to " 
-					+ clientName + " " + remoteSocketAddress + threadInfo);
+				System.out.println("Sent: \"" + inputLine + "\" to " + clientName + " " + remoteSocketAddress + threadInfo);
+
 				inputLine = socketReader.readLine();
-				System.out.println("Received: \"" + inputLine + "\" from " 
-					+ clientName + " " + remoteSocketAddress + threadInfo);
+				System.out.println("Received: \"" + inputLine + "\" from " + clientName + " " + remoteSocketAddress + threadInfo);
             }
 			System.out.println("Closing connection " + remoteSocketAddress 
 				+ " (" + localSocketAddress + ").");
@@ -86,7 +85,9 @@ class EchoServer implements Runnable {
 			System.out.println("Listening (" + serverSocketAddress + ").");
             
 			while (true) {
-				clientSocket = serverSocket.accept();     
+				System.out.println("waiting here for a client to connect");
+				clientSocket = serverSocket.accept();
+				System.out.println("a client connected :)");
 				executor.execute(new EchoServer(clientSocket));
 			}
         } 
